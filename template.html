@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MIVRO Bot</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .bot-message {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .button-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+        .hangman-stage {
+            font-family: monospace;
+            white-space: pre;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-4 max-w-md mx-auto">
+    <div class="bg-white rounded-lg shadow-lg p-4">
+        <div id="chat-container" class="mb-4">
+            <div id="welcome-message" class="bot-message bg-blue-50 p-3 rounded-lg mb-3">
+                <h2 class="font-bold text-lg text-blue-800">Добро пожаловать в MIVRO Bot!</h2>
+                <p class="text-gray-700">Ваш баланс: <span class="font-bold">500 MIVRO</span></p>
+            </div>
+        </div>
+        
+        <div id="main-menu" class="button-grid">
+            <button onclick="showMenu('games')" class="bg-purple-500 hover:bg-purple-600 text-white p-3 rounded-lg flex items-center justify-center">
+                <i class="fas fa-gamepad mr-2"></i> 🎮 Игры
+            </button>
+            <button onclick="showBalance()" class="bg-green-500 hover:bg-green-600 text-white p-3 rounded-lg flex items-center justify-center">
+                <i class="fas fa-wallet mr-2"></i> 💰 Баланс
+            </button>
+            <button onclick="showMenu('slaves')" class="bg-yellow-500 hover:bg-yellow-600 text-white p-3 rounded-lg flex items-center justify-center">
+                <i class="fas fa-users mr-2"></i> 👥 Рабы
+            </button>
+            <button onclick="showMenu('business')" class="bg-red-500 hover:bg-red-600 text-white p-3 rounded-lg flex items-center justify-center">
+                <i class="fas fa-store mr-2"></i> 🏪 Бизнес
+            </button>
+            <button onclick="showMenu('bonuses')" class="bg-blue-500 hover:bg-blue-600 text-white p-3 rounded-lg flex items-center justify-center">
+                <i class="fas fa-gift mr-2"></i> 🎁 Бонусы
+            </button>
+            <button onclick="showMivroCoin()" class="bg-indigo-500 hover:bg-indigo-600 text-white p-3 rounded-lg flex items-center justify-center">
+                <i class="fas fa-coins mr-2"></i> MIVROCOIN
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let balance = 500;
+        let slaves = 0;
+        let businesses = {
+            farm: 0,
+            shop: 0,
+            factory: 0,
+            shawarma: 0,
+            carwash: 0,
+            clothes: 0
+        };
+        let hangmanWord = "";
+        let guessedLetters = [];
+        let hangmanStage = 0;
+        const hangmanStages = [
+            `
+              +---+
+              |   |
+                  |
+                  |
+                  |
+                  |
+            =========`,
+            `
+              +---+
+              |   |
+              O   |
+                  |
+                  |
+                  |
+            =========`,
+            `
+              +---+
+              |   |
+              O   |
+              |   |
+                  |
+                  |
+            =========`,
+            `
+              +---+
+              |   |
+              O   |
+             /|   |
+                  |
+                  |
+            =========`,
+            `
+              +---+
+              |   |
+              O   |
+             /|\\  |
+                  |
+                  |
+            =========`,
+            `
+              +---+
+              |   |
+              O   |
+             /|\\  |
+             /    |
+                  |
+            =========`,
+            `
+              +---+
+              |   |
+              O   |
+             /|\\  |
+             / \\  |
+                  |
+            =========`
+        ];
+        const riddles = [
+            { question: "Без окон, без дверей, полна горница людей", answer: "арбуз" },
+            { question: "Висит груша - нельзя скушать", answer: "лампочка" },
+            { question: "Зимой и летом одним цветом", answer: "ель" }
+        ];
+
+        function addBotMessage(content) {
+            // Remove previous bot messages
+            const chatContainer = document.getElementById('chat-container');
+            const botMessages = chatContainer.querySelectorAll('.bot-message');
+            botMessages.forEach(msg => {
+                if (msg.id !== 'welcome-message') {
+                    msg.remove();
+                }
+            });
+            
+            // Add new message
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'bot-message bg-blue-50 p-3 rounded-lg mb-3';
+            messageDiv.innerHTML = content;
+            chatContainer.appendChild(messageDiv);
+        }
+
+        function showBalance() {
+            addBotMessage(`
+                <h3 class="font-bold text-lg">💰 Ваш баланс</h3>
+                <p class="text-xl font-bold my-2">${balance} MIVRO</p>
+                <p class="text-sm text-gray-600">Налог 5% на все доходы</p>
+            `);
+        }
+
+        function showMivroCoin() {
+            const coins = Math.floor(balance / 1000000);
+            addBotMessage(`
+                <h3 class="font-bold text-lg">MIVROCOIN</h3>
+                <p>1 MIVROCOIN = 1,000,000 MIVRO</p>
+                <p class="text-xl font-bold my-2">Ваши монеты: ${coins}</p>
+                <button onclick="convertToCoin()" class="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1 rounded mt-2">
+                    Конвертировать
+                </button>
+            `);
+        }
+
+        function convertToCoin() {
+            if (balance >= 1000000) {
+                balance -= 1000000;
+                addBotMessage(`
+                    <p>Вы получили 1 MIVROCOIN!</p>
+                    <p class="text-sm">Новый баланс: ${balance} MIVRO</p>
+                `);
+            } else {
+                addBotMessage(`
+                    <p class="text-red-500">Недостаточно MIVRO для конвертации!</p>
+                    <p>Нужно минимум 1,000,000 MIVRO</p>
+                `);
+            }
+        }
+
+        function showMenu(menuType) {
+            if (menuType === 'games') {
+                addBotMessage(`
+                    <h3 class="font-bold text-lg">🎮 Игровые режимы</h3>
+                    <div class="button-grid mt-2">
+                        <button onclick="startHangman()" class="bg-purple-500 hover:bg-purple-600 text-white p-2 rounded-lg">
+                            Виселица
+                        </button>
+                        <button onclick="startNumberGuess()" class="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-lg">
+                            Угадай число
+                        </button>
+                        <button onclick="startRoulette()" class="bg-green-500 hover:bg-green-600 text-white p-2 rounded-lg">
+                            Рулетка
+                        </button>
+                        <button onclick="startDice()" class="bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg">
+                            Кости
+                        </button>
+                    </div>
+                    <button onclick="showBalance()" class="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded mt-2">
+                        Назад
+                    </button>
+                `);
+            } else if (menuType === 'slaves') {
+                addBotMessage(`
+                    <h3 class="font-bold text-lg">👥 Магазин рабов</h3>
+                    <p class="my-2">Ваши рабы: ${slaves}</p>
+                    <p class="text-sm">Каждый раб приносит 10 MIVRO/час</p>
+                    <div class="flex items-center mt-3">
+                        <button onclick="buySlaves(1)" class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded">
+                            Купить 1 (100 MIVRO)
+                        </button>
+                        <input type="number" id="slave-count" min="1" value="1" class="w-16 mx-2 border rounded px-2 py-1">
+                        <button onclick="buySlavesCustom()" class="bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1 rounded">
+                            Купить
+                        </button>
+                    </div>
+                    <button onclick="showBalance()" class="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded mt-2">
+                        Назад
+                    </button>
+                `);
+            } else if (menuType === 'business') {
+                addBotMessage(`
+                    <h3 class="font-bold text-lg">🏪 Мой бизнес</h3>
+                    <div class="space-y-2 mt-2">
+                        <div class="flex justify-between items-center border-b pb-2">
+                            <span>Ферма (50 MIVRO/час)</span>
+                            <span>${businesses.farm} шт.</span>
+                            <button onclick="buyBusiness('farm', 1000)" class="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded text-sm">
+                                Купить (1000 MIVRO)
+                            </button>
+                        </div>
+                        <div class="flex justify-between items-center border-b pb-2">
+                            <span>Магазин (200 MIVRO/час)</span>
+                            <span>${businesses.shop} шт.</span>
+                            <button onclick="buyBusiness('shop', 5000)" class="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded text-sm">
+                                Купить (5000 MIVRO)
+                            </button>
+                        </div>
+                        <div class="flex justify-between items-center border-b pb-2">
+                            <span>Завод (500 MIVRO/час)</span>
+                            <span>${businesses.factory} шт.</span>
+                            <button onclick="buyBusiness('factory', 10000)" class="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded text-sm">
+                                Купить (10000 MIVRO)
+                            </button>
+                        </div>
+                    </div>
+                    <button onclick="showBalance()" class="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded mt-2">
+                        Назад
+                    </button>
+                `);
+            } else if (menuType === 'bonuses') {
+                addBotMessage(`
+                    <h3 class="font-bold text-lg">🎁 Бонусы</h3>
+                    <div class="space-y-3 mt-2">
+                        <div class="bg-yellow-50 p-3 rounded">
+                            <h4 class="font-bold">Кликер</h4>
+                            <p class="text-sm mb-2">Зарабатывайте 0.5 MIVRO за клик (макс. 500/день)</p>
+                            <button onclick="clickBonus()" class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded">
+                                Кликнуть!
+                            </button>
+                        </div>
+                        <div class="bg-blue-50 p-3 rounded">
+                            <h4 class="font-bold">Рефералы</h4>
+                            <p class="text-sm">Получайте 250 MIVRO за каждого приглашенного</p>
+                            <p class="text-xs mt-1">Ваша реферальная ссылка: t.me/mivrobot?start=ref123</p>
+                        </div>
+                    </div>
+                    <button onclick="showBalance()" class="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded mt-2">
+                        Назад
+                    </button>
+                `);
+            }
+        }
+
+        function buySlaves(count) {
+            const cost = count * 100;
+            if (balance >= cost) {
+                balance -= cost;
+                slaves += count;
+                addBotMessage(`
+                    <p>Вы купили ${count} рабов за ${cost} MIVRO</p>
+                    <p class="text-sm">Теперь у вас ${slaves} рабов</p>
+                `);
+            } else {
+                addBotMessage(`
+                    <p class="text-red-500">Недостаточно MIVRO!</p>
+                    <p>Нужно ${cost} MIVRO, у вас ${balance} MIVRO</p>
+                `);
+            }
+        }
+
+        function buySlavesCustom() {
+            const count = parseInt(document.getElementById('slave-count').value) || 1;
+            buySlaves(count);
+        }
+
+        function buyBusiness(type, cost) {
+            if (balance >= cost) {
+                balance -= cost;
+                businesses[type]++;
+                addBotMessage(`
+                    <p>Вы купили 1 ${getBusinessName(type)} за ${cost} MIVRO</p>
+                    <p class="text-sm">Теперь у вас ${businesses[type]} ${getBusinessName(type)}</p>
+                `);
+            } else {
+                addBotMessage(`
+                    <p class="text-red-500">Недостаточно MIVRO!</p>
+                    <p>Нужно ${cost} MIVRO, у вас ${balance} MIVRO</p>
+                `);
+            }
+        }
+
+        function getBusinessName(type) {
+            const names = {
+                farm: "ферм",
+                shop: "магазинов",
+                factory: "заводов",
+                shawarma: "шаурмечных",
+                carwash: "автомоек",
+                clothes: "магазинов одежды"
+            };
+            return names[type] || type;
+        }
+
+        function clickBonus() {
+            const earnings = 0.5;
+            balance += earnings;
+            addBotMessage(`
+                <p>+${earnings} MIVRO за клик!</p>
+                <p class="text-sm">Новый баланс: ${balance} MIVRO</p>
+            `);
+        }
+
+        function startHangman() {
+            const riddle = riddles[Math.floor(Math.random() * riddles.length)];
+            hangmanWord = riddle.answer.toLowerCase();
+            guessedLetters = [];
+            hangmanStage = 0;
+            
+            addBotMessage(`
+                <h3 class="font-bold text-lg">Виселица</h3>
+                <p class="mb-2">${riddle.question}</p>
+                <div class="hangman-stage bg-gray-100 p-2 rounded font-mono">${hangmanStages[hangmanStage]}</div>
+                <div class="my-3 text-xl font-mono">${displayWord()}</div>
+                <input type="text" id="hangman-guess" placeholder="Введите букву" class="border rounded px-2 py-1 w-full mb-2" maxlength="1">
+                <button onclick="makeHangmanGuess()" class="bg-purple-500 hover:bg-purple-600 text-white px-3 py-1 rounded w-full">
+                    Угадать
+                </button>
+                <button onclick="showMenu('games')" class="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded mt-2 w-full">
+                    Назад
+                </button>
+            `);
+        }
+
+        function displayWord() {
+            return hangmanWord.split('').map(letter => 
+                guessedLetters.includes(letter) ? letter : '_'
+            ).join(' ');
+        }
+
+        function makeHangmanGuess() {
+            const guess = document.getElementById('hangman-guess').value.toLowerCase();
+            if (!guess) return;
+            
+            document.getElementById('hangman-guess').value = '';
+            
+            if (guessedLetters.includes(guess)) {
+                addBotMessage(`<p class="text-yellow-600">Вы уже пробовали букву ${guess}</p>`);
+                return;
+            }
+            
+            guessedLetters.push(guess);
+            
+            if (!hangmanWord.includes(guess)) {
+                hangmanStage++;
+                if (hangmanStage >= hangmanStages.length - 1) {
+                    // Game over
+                    addBotMessage(`
+                        <h3 class="font-bold text-lg">Виселица</h3>
+                        <div class="hangman-stage bg-gray-100 p-2 rounded font-mono">${hangmanStages[hangmanStages.length - 1]}</div>
+                        <p class="text-red-500 my-2">Игра окончена! Слово было: ${hangmanWord}</p>
+                        <button onclick="startHangman()" class="bg-purple-500 hover:bg-purple-600 text-white px-3 py-1 rounded w-full">
+                            Новая игра
+                        </button>
+                        <button onclick="showMenu('games')" class="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded mt-2 w-full">
+                            Назад
+                        </button>
+                    `);
+                    return;
+                }
+            }
+            
+            const currentDisplay = displayWord();
+            if (!currentDisplay.includes('_')) {
+                // Win
+                const reward = 50;
+                balance += reward;
+                addBotMessage(`
+                    <h3 class="font-bold text-lg">Виселица</h3>
+                    <p class="text-green-500 my-2">Победа! Слово: ${hangmanWord}</p>
+                    <p>+${reward} MIVRO!</p>
+                    <button onclick="startHangman()" class="bg-purple-500 hover:bg-purple-600 text-white px-3 py-1 rounded w-full">
+                        Новая игра
+                    </button>
+                    <button onclick="showMenu('games')" class="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded mt-2 w-full">
+                        Назад
+                    </button>
+                `);
+                return;
+            }
+            
+            addBotMessage(`
+                <h3 class="font-bold text-lg">Виселица</h3>
+                <div class="hangman-stage bg-gray-100 p-2 rounded font-mono">${hangmanStages[hangmanStage]}</div>
+                <div class="my-3 text-xl font-mono">${currentDisplay}</div>
+                <p>Использованные буквы: ${guessedLetters.join(', ')}</p>
+                <input type="text" id="hangman-guess" placeholder="Введите букву" class="border rounded px-2 py-1 w-full mb-2" maxlength="1">
+                <button onclick="makeHangmanGuess()" class="bg-purple-500 hover:bg-purple-600 text-white px-3 py-1 rounded w-full">
+                    Угадать
+                </button>
+                <button onclick="showMenu('games')" class="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded mt-2 w-full">
+                    Назад
+                </button>
+            `);
+        }
+
+        function startNumberGuess() {
+            const secretNumber = Math.floor(Math.random() * 10) + 1;
+            addBotMessage(`
+                <h3 class="font-bold text-lg">Угадай число (1-10)</h3>
+                <p>Ставка: 10 MIVRO</p>
+                <input type="number" id="number-guess" min="1" max="10" placeholder="Ваше число" class="border rounded px-2 py-1 w-full mb-2">
+                <button onclick="checkNumberGuess(${secretNumber})" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded w-full">
+                    Проверить
+                </button>
+                <button onclick="showMenu('games')" class="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded mt-2 w-full">
+                    Назад
+                </button>
+            `);
+        }
+
+        function checkNumberGuess(secretNumber) {
+            const guess = parseInt(document.getElementById('number-guess').value);
+            if (!guess || guess < 1 || guess > 10) {
+                addBotMessage(`<p class="text-red-500">Введите число от 1 до 10</p>`);
+                return;
+            }
+            
+            let result;
+            if (guess === secretNumber) {
+                result = "Ничья! Возврат ставки";
+                balance += 10; // Return the bet
+            } else if (guess > secretNumber) {
+                result = "Выигрыш! x2 ставки";
+                balance += 20; // Win double
+            } else {
+                result = "Проигрыш";
+                balance -= 10; // Lose the bet
+            }
+            
+            addBotMessage(`
+                <h3 class="font-bold text-lg">Угадай число</h3>
+                <p>Загаданное число: ${secretNumber}</p>
+                <p>Ваше число: ${guess}</p>
+                <p class="font-bold my-2">${result}</p>
+                <p>Новый баланс: ${balance} MIVRO</p>
+                <button onclick="startNumberGuess()" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded w-full">
+                    Новая игра
+                </button>
+                <button onclick="showMenu('games')" class="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded mt-2 w-full">
+                    Назад
+                </button>
+            `);
+        }
+
+        function startRoulette() {
+            addBotMessage(`
+                <h3 class="font-bold text-lg">Рулетка</h3>
+                <p>Ставка: 10 MIVRO</p>
+                <div class="button-grid mt-2">
+                    <button onclick="playRoulette('red')" class="bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg">
+                        Красное
+                    </button>
+                    <button onclick="playRoulette('black')" class="bg-black hover:bg-gray-800 text-white p-2 rounded-lg">
+                        Чёрное
+                    </button>
+                    <button onclick="playRoulette('even')" class="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-lg">
+                        Чётное
+                    </button>
+                    <button onclick="playRoulette('odd')" class="bg-green-500 hover:bg-green-600 text-white p-2 rounded-lg">
+                        Нечётное
+                    </button>
+                </div>
+                <button onclick="showMenu('games')" class="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded mt-2 w-full">
+                    Назад
+                </button>
+            `);
+        }
+
+        function playRoulette(betType) {
+            const number = Math.floor(Math.random() * 37); // 0-36
+            let isWin = false;
+            let color = '';
+            
+            if (number === 0) {
+                color = 'green';
+            } else if (number % 2 === 0) {
+                color = (number <= 10 || (number >= 19 && number <= 28)) ? 'black' : 'red';
+            } else {
+                color = (number <= 10 || (number >= 19 && number <= 28)) ? 'red' : 'black';
+            }
+            
+            switch(betType) {
+                case 'red': isWin = color === 'red'; break;
+                case 'black': isWin = color === 'black'; break;
+                case 'even': isWin = number !== 0 && number % 2 === 0; break;
+                case 'odd': isWin = number % 2 === 1; break;
+            }
+            
+            if (isWin) {
+                balance += 20; // Win double
+            } else {
+                balance -= 10; // Lose the bet
+            }
+            
+            addBotMessage(`
+                <h3 class="font-bold text-lg">Рулетка</h3>
+                <p>Выпало: ${number} (${color === 'green' ? 'зелёное' : color === 'red' ? 'красное' : 'чёрное'})</p>
+                <p>Вы ставили на: ${getBetName(betType)}</p>
+                <p class="font-bold my-2">${isWin ? 'Выигрыш! +20 MIVRO' : 'Проигрыш! -10 MIVRO'}</p>
+                <p>Новый баланс: ${balance} MIVRO</p>
+                <button onclick="startRoulette()" class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded w-full">
+                    Новая игра
+                </button>
+                <button onclick="showMenu('games')" class="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded mt-2 w-full">
+                    Назад
+                </button>
+            `);
+        }
+
+        function getBetName(betType) {
+            const names = {
+                red: "красное",
+                black: "чёрное",
+                even: "чётное",
+                odd: "нечётное"
+            };
+            return names[betType] || betType;
+        }
+
+        function startDice() {
+            addBotMessage(`
+                <h3 class="font-bold text-lg">Кости</h3>
+                <p>Ставка: 10 MIVRO</p>
+                <div class="button-grid mt-2">
+                    <button onclick="playDice('higher')" class="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-lg">
+                        Больше 3
+                    </button>
+                    <button onclick="playDice('lower')" class="bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg">
+                        Меньше 3
+                    </button>
+                    <button onclick="playDice('three')" class="bg-green-500 hover:bg-green-600 text-white p-2 rounded-lg">
+                        Ровно 3
+                    </button>
+                </div>
+                <button onclick="showMenu('games')" class="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded mt-2 w-full">
+                    Назад
+                </button>
+            `);
+        }
+
+        function playDice(betType) {
+            const dice = Math.floor(Math.random() * 6) + 1;
+            let isWin = false;
+            
+            switch(betType) {
+                case 'higher': isWin = dice > 3; break;
+                case 'lower': isWin = dice < 3; break;
+                case 'three': isWin = dice === 3; break;
+            }
+            
+            if (isWin) {
+                if (betType === 'three') {
+                    balance += 50; // Big win for exact match
+                } else {
+                    balance += 20; // Win double
+                }
+            } else {
+                balance -= 10; // Lose the bet
+            }
+            
+            addBotMessage(`
+                <h3 class="font-bold text-lg">Кости</h3>
+                <p>Выпало: ${dice}</p>
+                <p>Вы ставили на: ${getDiceBetName(betType)}</p>
+                <p class="font-bold my-2">${isWin ? `Выигрыш! +${betType === 'three' ? 50 : 20} MIVRO` : 'Проигрыш! -10 MIVRO'}</p>
+                <p>Новый баланс: ${balance} MIVRO</p>
+                <button onclick="startDice()" class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded w-full">
+                    Новая игра
+                </button>
+                <button onclick="showMenu('games')" class="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded mt-2 w-full">
+                    Назад
+                </button>
+            `);
+        }
+
+        function getDiceBetName(betType) {
+            const names = {
+                higher: "больше 3",
+                lower: "меньше 3",
+                three: "ровно 3"
+            };
+            return names[betType] || betType;
+        }
+    </script>
+</body>
+</html>
